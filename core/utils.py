@@ -43,9 +43,9 @@ def split_train_and_validation_datasets(dataset, classes, ratio=0.1):
     for class_index in range(classes):
         indices = np.where(labels == class_index)[0]
         validation_size_per_class = int(len(indices) * ratio)
-
+        
         np.random.shuffle(indices)
-
+        
         train_indices.extend(indices[:-validation_size_per_class])
         validation_indices.extend(indices[-validation_size_per_class:])
     

@@ -46,8 +46,8 @@ parser.add_argument('--use_cores', default=mp.cpu_count(), type=int)
 ###############################################################################
 # Network
 ###############################################################################
-parser.add_argument('--experiment_name', default='C10_C100_STL10', type=str)
-parser.add_argument('--dataset_name', default='CIFAR-10,CIFAR-100,STL-10', type=str)
+parser.add_argument('--experiment_name', default='CIFAR_10_FSL', type=str)
+parser.add_argument('--dataset_name', default='CIFAR-10', type=str)
 
 parser.add_argument('--weight_decay', default=1e-4, type=float)
 

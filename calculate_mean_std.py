@@ -6,19 +6,19 @@ from torchvision import transforms
 from core.data_utils import *
 from utility.utils import *
 
-dataset_info_list = [
-    ['CIFAR-10', get_CIFAR10],
-    ['CIFAR-100', get_CIFAR100],
-    ['STL-10', get_STL10],
-    ['MNIST', get_MNIST],
-    ['KMNIST', get_KMNIST],
-    ['FashionMNIST', get_FashionMNIST],
-    ['SVHN', get_SVHN],
-]
-
-customized_transforms = transforms.Compose([
+customized_transform = transforms.Compose([
     transforms.ToTensor(),
 ])
+
+dataset_info_list = [
+    # ['CIFAR-10', lambda:datasets.CIFAR10('./data/', train=True, download=False, transform=customized_transform)],
+    # ['CIFAR-100', lambda:datasets.CIFAR100('./data/', train=True, download=False, transform=customized_transform)],
+    # ['STL-10', lambda:datasets.STL10('./data/', split='train', download=False, transform=customized_transform)],
+    # ['MNIST', lambda:datasets.MNIST('./data/', train=True, download=False, transform=customized_transform)],
+    # ['KMNIST', lambda:datasets.KMNIST('./data/', train=True, download=False, transform=customized_transform)],
+    # ['FashionMNIST', lambda:datasets.FashionMNIST('./data/', train=True, download=False, transform=customized_transform)],
+    ['SVHN', lambda:datasets.SVHN('./data/SVHN/', split='train', download=False, transform=customized_transform)],
+]
 
 log_path = './data/info_mean_and_std.txt'
 if os.path.isfile(log_path): 
@@ -29,7 +29,7 @@ log_func = lambda string='': log_print(string, log_path)
 
 for name, function in dataset_info_list:
     # 1. load dataset
-    train_dataset, _, _, _, _ = function('./data/', train_transforms=customized_transforms)
+    train_dataset = function()
     
     means = None
     stds = None

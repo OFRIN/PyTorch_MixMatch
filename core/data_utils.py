@@ -59,7 +59,7 @@ class CIFAR100(datasets.CIFAR100):
     def __getitem__(self, index):
         return super().__getitem__(self.indices[index])
 
-def get_CIFAR_100(
+def get_CIFAR100(
     data_dir, 
     image_size=32, 
     mean=(0.5070757, 0.4865504, 0.44091937), std=(0.20089693, 0.19844234, 0.20229684), 
@@ -81,7 +81,7 @@ def get_CIFAR_100(
         ])
 
     in_channels = 3
-    classes = 10
+    classes = 100
 
     dataset = datasets.CIFAR100(data_dir, train=True, download=download, transform=train_transform)
     train_indices, validation_indices = split_train_and_validation_datasets(dataset, classes)
@@ -173,7 +173,7 @@ def get_MNIST(
     
     dataset = datasets.MNIST(data_dir, train=True, download=download, transform=train_transform)
     train_indices, validation_indices = split_train_and_validation_datasets(dataset, classes)
-
+    
     train_dataset = MNIST(data_dir, train_indices, train=True, download=download, transform=train_transform)
     validation_dataset = MNIST(data_dir, validation_indices, train=True, download=download, transform=test_transform)
     test_dataset = datasets.MNIST(data_dir, train=False, download=download, transform=test_transform)
@@ -303,6 +303,8 @@ def get_SVHN(
     in_channels = 3
     classes = 10
 
+    data_dir += 'SVHN/'
+    
     dataset = datasets.SVHN(data_dir, split='train', download=download, transform=train_transform)
     train_indices, validation_indices = split_train_and_validation_datasets(dataset, classes)
 
