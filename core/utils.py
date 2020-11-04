@@ -52,7 +52,7 @@ def split_train_and_validation_datasets(dataset, classes, ratio=0.1):
     return train_indices, validation_indices
 
 def split_labeled_and_unlabeled_datasets(dataset, classes, the_number_of_label_per_class):
-    labels = get_labels_from_dataset(dataset)
+    labels = np.asarray([label for image, label in dataset])
     
     labeled_indices = []
     unlabeled_indices = []

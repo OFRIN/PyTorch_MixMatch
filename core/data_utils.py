@@ -4,6 +4,15 @@ from torchvision import transforms
 
 from core.utils import *
 
+class TransformTwice:
+    def __init__(self, transform):
+        self.transform = transform
+
+    def __call__(self, inp):
+        out1 = self.transform(inp)
+        out2 = self.transform(inp)
+        return out1, out2
+
 class CIFAR10(datasets.CIFAR10):
     def __init__(self, data_dir, indices=None, train=True, download=False, transform=None):
         super().__init__(data_dir, train=train, download=download, transform=transform)
@@ -35,7 +44,7 @@ def get_CIFAR10(
             transforms.ToTensor(),
             transforms.Normalize(mean, std)
         ])
-
+    
     in_channels = 3
     classes = 10
 
@@ -45,8 +54,46 @@ def get_CIFAR10(
     train_dataset = CIFAR10(data_dir, train_indices, train=True, download=download, transform=train_transform)
     validation_dataset = CIFAR10(data_dir, validation_indices, train=True, download=download, transform=test_transform)
     test_dataset = datasets.CIFAR10(data_dir, train=False, download=download, transform=test_transform)
-
+    
     return train_dataset, validation_dataset, test_dataset, in_channels, classes
+
+def get_CIFAR10_with_unlabeled_dataset(
+    data_dir, 
+    the_number_of_label,
+    image_size=32, 
+    mean=(0.4914009, 0.48215914, 0.44653103), std=(0.20230275, 0.1994131, 0.2009607),
+    train_transform=None, test_transform=None, 
+    download=False
+):
+    if train_transform is None:
+        train_transform = transforms.Compose([
+            transforms.RandomCrop(image_size, padding=4),
+            transforms.RandomHorizontalFlip(),
+
+            transforms.ToTensor(),
+            transforms.Normalize(mean, std)
+        ])
+    if test_transform is None:
+        test_transform = transforms.Compose([
+            transforms.ToTensor(),
+            transforms.Normalize(mean, std)
+        ])
+    
+    in_channels = 3
+    classes = 10
+
+    dataset = datasets.CIFAR10(data_dir, train=True, download=download, transform=train_transform)
+    train_indices, validation_indices = split_train_and_validation_datasets(dataset, classes)
+
+    train_dataset = CIFAR10(data_dir, train_indices, train=True, download=download, transform=train_transform)
+    labeled_indices, unlabeled_indices = split_labeled_and_unlabeled_datasets(train_dataset, classes, the_number_of_label // classes)
+    
+    train_labeled_dataset = CIFAR10(data_dir, labeled_indices, train=True, download=download, transform=train_transform)
+    train_unlabeled_dataset = CIFAR10(data_dir, unlabeled_indices, train=True, download=download, transform=TransformTwice(train_transform))
+    validation_dataset = CIFAR10(data_dir, validation_indices, train=True, download=download, transform=test_transform)
+    test_dataset = datasets.CIFAR10(data_dir, train=False, download=download, transform=test_transform)
+
+    return train_labeled_dataset, train_unlabeled_dataset, validation_dataset, test_dataset, in_channels, classes
 
 class CIFAR100(datasets.CIFAR100):
     def __init__(self, data_dir, indices=None, train=True, download=False, transform=None):
@@ -112,7 +159,7 @@ def get_STL10(
 ):
     if train_transform is None:
         train_transform = transforms.Compose([
-            transforms.RandomCrop(image_size, padding=4),
+            transforms.RandomCrop(image_size, padding=image_size//8),
             transforms.RandomHorizontalFlip(),
 
             transforms.ToTensor(),
@@ -173,7 +220,7 @@ def get_MNIST(
     
     dataset = datasets.MNIST(data_dir, train=True, download=download, transform=train_transform)
     train_indices, validation_indices = split_train_and_validation_datasets(dataset, classes)
-    
+
     train_dataset = MNIST(data_dir, train_indices, train=True, download=download, transform=train_transform)
     validation_dataset = MNIST(data_dir, validation_indices, train=True, download=download, transform=test_transform)
     test_dataset = datasets.MNIST(data_dir, train=False, download=download, transform=test_transform)

@@ -19,11 +19,14 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+import torch.backends.cudnn as cudnn
+
 from torchvision import transforms, datasets
 from torch.utils.data import DataLoader
 from torch.utils.data.sampler import SubsetRandomSampler
 
-from core.networks import *
+from core.ema import *
+from core.wideresnet import *
 from core.data_utils import *
 
 from core.utils import *
@@ -57,6 +60,8 @@ parser.add_argument('--weight_decay', default=1e-4, type=float)
 parser.add_argument('--optimizer', default='SGD', type=str)
 parser.add_argument('--learning_rate', default=0.1, type=float)
 
+parser.add_argument('--ema', default=False, type=str2bool)
+
 parser.add_argument('--image_size', default=32, type=int)
 parser.add_argument('--batch_size', default=64, type=int)
 
@@ -77,8 +82,9 @@ if __name__ == '__main__':
         if args.batch_size > 256:
             args.learning_rate *= args.batch_size / 256
 
+    cudnn.benchmark = True
     set_seed(args.seed)
-
+    
     log_dir = create_directory(f'./experiments/logs/')
     model_dir = create_directory('./experiments/models/')
     tensorboard_dir = create_directory(f'./experiments/tensorboards/{args.experiment_name}/')
@@ -97,56 +103,44 @@ if __name__ == '__main__':
     
     # 2. Dataset
     if args.dataset_name == 'CIFAR-10':
-        train_dataset, validation_dataset, test_dataset, in_channels, classes = get_CIFAR_10(args.data_dir, args.image_size)
+        train_labeled_dataset, train_unlabeled_dataset, validation_dataset, test_dataset, in_channels, classes = get_CIFAR10_with_unlabeled_dataset(args.data_dir, args.image_size)
 
-    elif args.dataset_name == 'CIFAR-100':
-        train_dataset, validation_dataset, test_dataset, in_channels, classes = get_CIFAR_100(args.data_dir, args.image_size)
-
-    elif args.dataset_name == 'STL-10':
-        train_dataset, validation_dataset, test_dataset, in_channels, classes = get_STL_10(args.data_dir, args.image_size)
-
-    elif args.dataset_name == 'MNIST':
-        train_dataset, validation_dataset, test_dataset, in_channels, classes = get_MNIST(args.data_dir, args.image_size)
-
-    elif args.dataset_name == 'KMNIST':
-        train_dataset, validation_dataset, test_dataset, in_channels, classes = get_KMNIST(args.data_dir, args.image_size)
-
-    elif args.dataset_name == 'FashionMNIST':
-        train_dataset, validation_dataset, test_dataset, in_channels, classes = get_FashionMNIST(args.data_dir, args.image_size)
-
-    elif args.dataset_name == 'SVHN':
-        train_dataset, validation_dataset, test_dataset, in_channels, classes = get_SVHN(args.data_dir, args.image_size)
-
-    train_length = int(len(train_dataset) * 0.9)
-    indices = np.arange(len(train_dataset))
-
-    np.random.shuffle(indices)
-
-    train_indices = indices[:train_length]
-    validation_indices = indices[train_length:]
-    
     log_func('# Dataset ({})'.format(args.dataset_name))
-    log_func('[i] The size of train dataset = {}'.format(len(train_indices)))
-    log_func('[i] The size of validation dataset = {}'.format(len(validation_indices)))
+    log_func('[i] The size of train labeled dataset = {}'.format(len(train_labeled_dataset)))
+    log_func('[i] The size of train unlabeled dataset = {}'.format(len(train_unlabeled_dataset)))
+    log_func('[i] The size of validation dataset = {}'.format(len(validation_dataset)))
     log_func('[i] The size of test dataset = {}'.format(len(test_dataset)))
     log_func()
-
-    train_sampler = SubsetRandomSampler(train_indices)
-    validation_sampler = SubsetRandomSampler(validation_indices)
     
-    train_loader = DataLoader(train_dataset, batch_size=args.batch_size, num_workers=args.use_cores // 4, pin_memory=False, drop_last=True, sampler=train_sampler)
-    validation_loader = DataLoader(validation_dataset, batch_size=args.batch_size, num_workers=args.use_cores // 4, pin_memory=False, drop_last=False, sampler=validation_sampler)
+    train_labeled_loader = DataLoader(train_labeled_dataset, batch_size=args.batch_size, num_workers=args.use_cores // 4, pin_memory=False, drop_last=True)
+    train_unlabeled_loader = DataLoader(train_unlabeled_dataset, batch_size=args.batch_size, num_workers=args.use_cores // 4, pin_memory=False, drop_last=True)
+    validation_loader = DataLoader(validation_dataset, batch_size=args.batch_size, num_workers=args.use_cores // 4, pin_memory=False, drop_last=False)
     test_loader = DataLoader(test_dataset, batch_size=args.batch_size, num_workers=args.use_cores // 4, pin_memory=False, drop_last=False)
     
     # 3. Networks
-    model = WideResNet(in_channels, classes)
+    def build_model(ema=False):
+        model = WideResNet(in_channels, classes)
+
+        if ema:
+            for param in model.parameters():
+                param.detach_()
+        
+        return model
+
+    model = build_model()
+    ema_model = build_model(ema=True)
+    
+    log_func('# Network')
+    log_func('[i] Total Params: %.2fM'%(sum(param.numel() for param in model.parameters())/1000000.0))
+    log_func()
 
     def accuracy_fn(logits, labels):
         condition = torch.argmax(logits, dim=1) == labels
         accuracy = torch.mean(condition.float())
         return accuracy * 100
 
-    loss_fn = F.cross_entropy
+    class_loss_fn = nn.CrossEntropyLoss()
+    semi_loss_fn = 
     
     # 4. Optimizer
     if args.optimizer == 'Adam':
